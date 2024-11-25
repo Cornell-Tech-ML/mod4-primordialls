@@ -8,8 +8,8 @@ import numpy as np
 from dataclasses import field
 from .autodiff import Context, Variable, backpropagate, central_difference
 from .scalar_functions import (
-    EQ,
-    LT,
+    Eq,
+    Lt,
     Add,
     Exp,
     Inv,
@@ -48,7 +48,7 @@ class ScalarHistory:
 _var_count = 0
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Scalar:
     """A reimplementation of scalar values for autodifferentiation
     tracking. Scalar Variables behave as close as possible to standard
@@ -112,21 +112,45 @@ class Scalar:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """True if this variable is a constant (no `derivative`)"""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Returns the parents of this variable."""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Computes the chain rule for backpropagation.
+        This method calculates the gradients of the output with respect to the
+        input variables by applying the chain rule. It uses the history of
+        operations stored in the `history` attribute to backpropagate the
+        gradients through the computational graph.
+
+        Args:
+        ----
+            d_output (Any): The gradient of the output with respect to some
+                    variable.
+
+        Returns:
+        -------
+            Iterable[Tuple[Variable, Any]]: An iterable of tuples where each
+                            tuple contains a `Variable` and its
+                            corresponding gradient.
+
+        Raises:
+        ------
+            NotImplementedError: If the method is not yet implemented.
+
+        """
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        localderivs = h.last_fn._backward(h.ctx, d_output)
+        return list(zip(h.inputs, localderivs))
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,17 +165,61 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
+    def __add__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, b)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        return Lt.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        return Lt.apply(b, self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:
+        return Eq.apply(b, self)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, -b)
+
+    def __neg__(self) -> Scalar:
+        return Neg.apply(self)
+
+    def log(self) -> Scalar:
+        """Apply the natural logarithm to the scalar."""
+        return Log.apply(self)
+
+    def exp(self) -> Scalar:
+        """Apply the exponential function to the scalar."""
+        return Exp.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        """Apply the sigmoid function to the scalar."""
+        return Sigmoid.apply(self)
+
+    def relu(self) -> Scalar:
+        """Apply the ReLU function to the scalar."""
+        return ReLU.apply(self)
 
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
-    """Checks that autodiff works on a python function.
-    Asserts False if derivative is incorrect.
+    """Checks the derivative of a function using central difference approximation.
+    This function computes the derivative of the given function `f` at the
+    provided scalar arguments using automatic differentiation and compares
+    it against the derivative computed using the central difference method.
 
     Parameters
     ----------
-        f : function from n-scalars to 1-scalar.
-        *scalars  : n input scalar values.
+    f : Any
+        The function whose derivative is to be checked.
+    *scalars : Scalar
+        The scalar arguments at which the derivative of the function `f`
+        is to be checked.
+
+    Raises
+    ------
+    AssertionError
+        If the derivative computed using automatic differentiation does not
+        match the derivative computed using the central difference method
+        within a tolerance of 1e-2.
 
     """
     out = f(*scalars)
@@ -162,7 +230,6 @@ Derivative check at arguments f(%s) and received derivative f'=%f for argument %
 but was expecting derivative f'=%f from central difference."""
     for i, x in enumerate(scalars):
         check = central_difference(f, *scalars, arg=i)
-        print(str([x.data for x in scalars]), x.derivative, i, check)
         assert x.derivative is not None
         np.testing.assert_allclose(
             x.derivative,

@@ -30,12 +30,16 @@ class Module:
         return list(m.values())
 
     def train(self) -> None:
-        """Set the mode of this module and all descendent modules to `train`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendent to true."""
+        self.training = True
+        for modu in self.modules():
+            modu.train()
 
     def eval(self) -> None:
-        """Set the mode of this module and all descendent modules to `eval`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendent to false."""
+        self.training = False
+        for modu in self.modules():
+            modu.eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """Collect all the parameters of this module and its descendents.
@@ -45,11 +49,18 @@ class Module:
             The name and `Parameter` of each ancestor parameter.
 
         """
-        raise NotImplementedError("Need to include this file from past assignment.")
+        parameters = {}
+        for k, v in self._parameters.items():
+            parameters[k] = v
+
+        for name, module in self._modules.items():
+            for k, v in module.named_parameters():
+                parameters[name + "." + k] = v
+        return list(parameters.items())
 
     def parameters(self) -> Sequence[Parameter]:
         """Enumerate over all the parameters of this module and its descendents."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        return [j for _, j in self.named_parameters()]
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """Manually add a parameter. Useful helper for scalar parameters.
@@ -85,6 +96,21 @@ class Module:
         return None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Allows the instance to be called as if it were a function.
+
+        This method is invoked when the instance is called with positional and keyword arguments.
+
+        Args:
+        ----
+        *args: Positional arguments that are passed to the method. These are unpacked from a tuple.
+        **kwargs: Keyword arguments that are passed to the method. These are unpacked from a dictionary.
+
+        Returns:
+        -------
+        The result of the function call. The type and value of the return depend on the specific
+        implementation of the __call__ method in the class.
+
+        """
         return self.forward(*args, **kwargs)
 
     def __repr__(self) -> str:
