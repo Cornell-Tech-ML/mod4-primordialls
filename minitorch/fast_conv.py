@@ -97,9 +97,13 @@ def _tensor_conv1d(
                     for kw_ in prange(kw):
                         iw = ow - kw_ if reverse else ow + kw_
                         if 0 <= iw < width:
-                            acc += input[b * s1[0] + ic * s1[1] + iw * s1[2]] * weight[oc * s2[0] + ic * s2[1] + kw_ * s2[2]]
+                            acc += (
+                                input[b * s1[0] + ic * s1[1] + iw * s1[2]]
+                                * weight[oc * s2[0] + ic * s2[1] + kw_ * s2[2]]
+                            )
                 out[b * s3[0] + oc * s3[1] + ow * s3[2]] = acc
-    
+
+
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
 
 
@@ -226,7 +230,7 @@ def _tensor_conv2d(
     # inners
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
-    
+
     # TODO: Implement for Task 4.2.
     raise NotImplementedError("Need to implement for Task 4.2")
 
