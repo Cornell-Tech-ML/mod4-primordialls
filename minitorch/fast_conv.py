@@ -214,7 +214,7 @@ def _tensor_conv2d(
         reverse (bool): anchor weight at top-left or bottom-right
 
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = out_shape
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -224,16 +224,57 @@ def _tensor_conv2d(
         and out_channels == out_channels_
     )
 
-    # s1 = input_strides
-    # s2 = weight_strides
-    # s3 = out_strides
-    # # inners
-    # s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
-    # s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
+    s1 = input_strides
+    s2 = weight_strides
+    s3 = out_strides
+    # inners
+    s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
+    s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
+    s30, s31, s32, s33 = s3[0], s3[1], s3[2], s3[3]
+    
+    for b in prange(batch):
+        for oc in prange(out_channels):
+            for oh in prange(out_height):
+                for ow in prange(out_width):
+                    # Initialize accumulator
+                    acc = 0.0
+                    
+                    # Convolve at current position
+                    for ic in prange(in_channels):
+                        for kh_ in prange(kh):
+                            for kw_ in prange(kw):
+                                # Calculate input position with proper kernel alignment
+                                if reverse:
+                                    ih = oh + kh_ - kh + 1
+                                    iw = ow + kw_ - kw + 1
+                                else:
+                                    ih = oh + kh_
+                                    iw = ow + kw_
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+                                # Check bounds
+                                if (ih >= 0 and ih < height and iw >= 0 and iw < width):
+                                    # Get input value
+                                    in_idx = (
+                                        b * s10 + 
+                                        ic * s11 + 
+                                        ih * s12 + 
+                                        iw * s13
+                                    )
+                                    
+                                    # Get weight value
+                                    w_idx = (
+                                        oc * s20 + 
+                                        ic * s21 + 
+                                        kh_ * s22 + 
+                                        kw_ * s23
+                                    )
+                                    
+                                    # Accumulate product
+                                    acc += input[in_idx] * weight[w_idx]
 
+                    # Store result
+                    out_idx = b * s30 + oc * s31 + oh * s32 + ow * s33
+                    out[out_idx] = acc
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 

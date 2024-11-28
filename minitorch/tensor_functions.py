@@ -198,6 +198,20 @@ class Sum(Function):
         """Sum backward"""
         (a,) = ctx.saved_values
         return (zeros(a.shape) + 1) * grad_output, 0.0
+    
+class Max(Function):
+    @staticmethod
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Max forward"""
+        b = a.f.max_reduce(a, int(dim.item()))
+        ctx.save_for_backward(a==b)
+        return b
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Max backward"""
+        (a,) = ctx.saved_values
+        return a * grad_output, 0.0
 
 
 class LT(Function):
