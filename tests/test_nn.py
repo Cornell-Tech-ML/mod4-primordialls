@@ -33,19 +33,17 @@ def test_avg(t: Tensor) -> None:
 def test_max(t: Tensor) -> None:
     # Test max reduction over axes
     out = minitorch.max(t, 1)
-    assert_close(
-        out[0, 0, 0], max([t[0, i, 0] for i in range(3)])
-    )
+    assert_close(out[0, 0, 0], max([t[0, i, 0] for i in range(3)]))
 
-    out = minitorch.max(t, 2) 
-    assert_close(
-        out[0, 0, 0], max([t[0, 0, i] for i in range(4)])
-    )
+    out = minitorch.max(t, 2)
+    assert_close(out[0, 0, 0], max([t[0, 0, i] for i in range(4)]))
 
     # Test backward pass manually
     t.requires_grad_(True)
     out = minitorch.max(t, 1)
     out.sum().backward()
+
+    assert t.grad
 
     # The gradient should be 1.0 at the maximum value's position and 0.0 elsewhere
     for i in range(2):

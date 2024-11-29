@@ -56,7 +56,12 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
 
     """
     output, new_height, new_width = tile(input, kernel)
-    return output.mean(4).contiguous().view(output.shape[0], output.shape[1], new_height, new_width)
+    return (
+        output.mean(4)
+        .contiguous()
+        .view(output.shape[0], output.shape[1], new_height, new_width)
+    )
+
 
 def max(input: Tensor, dim: int) -> Tensor:
     """Compute the max along a dimension.
@@ -72,8 +77,8 @@ def max(input: Tensor, dim: int) -> Tensor:
 
     """
     return input.max(dim)
-    
-    
+
+
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     """Tiled max pooling 2D.
 
@@ -88,7 +93,11 @@ def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
 
     """
     output, new_height, new_width = tile(input, kernel)
-    return max(output,4).contiguous().view(output.shape[0], output.shape[1], new_height, new_width)
+    return (
+        max(output, 4)
+        .contiguous()
+        .view(output.shape[0], output.shape[1], new_height, new_width)
+    )
 
 
 def softmax(input: Tensor, dim: int) -> Tensor:
@@ -107,8 +116,8 @@ def softmax(input: Tensor, dim: int) -> Tensor:
     # Compute e^x for input and normalize
     out = input.exp()
     return out / (out.sum(dim))
-    
-    
+
+
 def logsoftmax(input: Tensor, dim: int) -> Tensor:
     """Compute the log of the softmax as a tensor.
 
@@ -127,6 +136,7 @@ def logsoftmax(input: Tensor, dim: int) -> Tensor:
     sum_exp = shifted_input.exp().sum(dim)
     log_sum_exp = sum_exp.log() + max_tensor
     return input - log_sum_exp
+
 
 # minitorch.maxpool2d
 def dropout(input: Tensor, p: float, ignore: bool = False) -> Tensor:
