@@ -1,18 +1,18 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 from .tensor import Tensor
-import random
+from .tensor_functions import rand, Function, Context
 
 
-# List of functions in this file:
-# - avgpool2d: Tiled average pooling 2D
-# - argmax: Compute the argmax as a 1-hot tensor
-# - Max: New Function for max operator
-# - max: Apply max reduction
-# - softmax: Compute the softmax as a tensor
-# - logsoftmax: Compute the log of the softmax as a tensor - See https://en.wikipedia.org/wiki/LogSumExp#log-sum-exp_trick_for_log-domain_calculations
-# - maxpool2d: Tiled max pooling 2D
-# - dropout: Dropout positions based on random noise, include an argument to turn off
+# # List of functions in this file:
+# # - avgpool2d: Tiled average pooling 2D
+# # - argmax: Compute the argmax as a 1-hot tensor
+# # - Max: New Function for max operator
+# # - max: Apply max reduction
+# # - softmax: Compute the softmax as a tensor
+# # - logsoftmax: Compute the log of the softmax as a tensor - See https://en.wikipedia.org/wiki/LogSumExp#log-sum-exp_trick_for_log-domain_calculations
+# # - maxpool2d: Tiled max pooling 2D
+# # - dropout: Dropout positions based on random noise, include an argument to turn off
 
 
 def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
@@ -63,7 +63,22 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     )
 
 
-def max(input: Tensor, dim: int) -> Tensor:
+class Max(Function):
+    @staticmethod
+    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
+        """Max forward"""
+        b = a.f.max_reduce(a, int(dim.item()))
+        ctx.save_for_backward(a.f.eq_zip(a, b))
+        return b
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Max backward"""
+        (a,) = ctx.saved_values
+        return a * grad_output, 0.0
+
+
+def max(input: Tensor, dim: Optional[int]) -> Tensor:
     """Compute the max along a dimension.
 
     Args:
@@ -76,7 +91,10 @@ def max(input: Tensor, dim: int) -> Tensor:
         Tensor with dimension dim reduced to 1
 
     """
-    return input.max(dim)
+    if dim is None:
+        return Max.apply(input.contiguous().view(input.size), input._ensure_tensor(0))
+    else:
+        return Max.apply(input, input._ensure_tensor(dim))
 
 
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
@@ -138,7 +156,6 @@ def logsoftmax(input: Tensor, dim: int) -> Tensor:
     return input - log_sum_exp
 
 
-# minitorch.maxpool2d
 def dropout(input: Tensor, p: float, ignore: bool = False) -> Tensor:
     """Dropout positions based on random noise, include an argument to turn off.
 
@@ -155,9 +172,11 @@ def dropout(input: Tensor, p: float, ignore: bool = False) -> Tensor:
     """
     if ignore:
         return input
-    mask = input.zeros()
-    for i in mask._tensor.indices():
-        if random.random() > p:
-            mask._tensor.set(i, 1.0)
-    output = mask * input
-    return output
+
+    if p == 0.0:
+        return input
+
+    if p == 1.0:
+        return input.zeros()
+
+    return input * (rand(input.shape, backend=input.backend, requires_grad=False) > p)

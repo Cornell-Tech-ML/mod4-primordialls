@@ -29,7 +29,6 @@ from .tensor_functions import (
     ReLU,
     Sigmoid,
     Sum,
-    Max,
     View,
     tensor,
 )
@@ -372,13 +371,6 @@ class Tensor:
             return Sum.apply(self.contiguous().view(self.size), self._ensure_tensor(0))
         else:
             return Sum.apply(self, self._ensure_tensor(dim))
-
-    def max(self, dim: Optional[int] = None) -> Tensor:
-        """Compute the max along a dimension"""
-        if dim is None:
-            return Max.apply(self.contiguous().view(self.size), self._ensure_tensor(0))
-        else:
-            return Max.apply(self, self._ensure_tensor(dim))
 
     def mean(self, dim: Optional[int] = None) -> Tensor:
         """Mean of the tensor along a dimension"""

@@ -59,38 +59,35 @@ class CNNSentimentKim(minitorch.Module):
         dropout=0.25,
     ):
         super().__init__()
-        self.feature_map_size = feature_map_size
-        self.embedding_size = embedding_size
         self.dropout = dropout
 
-        self.convs = [Conv1d(in_channels=embedding_size, out_channels=feature_map_size, kernel_width=fs) for fs in filter_sizes]
+        self.conv1 = Conv1d(in_channels=embedding_size, out_channels=feature_map_size, kernel_width=filter_sizes[0])
+        self.conv2 = Conv1d(in_channels=embedding_size, out_channels=feature_map_size, kernel_width=filter_sizes[1])
+        self.conv3 = Conv1d(in_channels=embedding_size, out_channels=feature_map_size, kernel_width=filter_sizes[2])
 
-        self.fc = Linear(feature_map_size * len(filter_sizes), 1)
+        self.fc = Linear(feature_map_size, 1)
 
 
     def forward(self, embeddings):
         """
         embeddings tensor: [batch x sentence length x embedding dim]
         """
+        # Transpose to match Conv1d input requirements: [batch_size, embedding_dim, sentence_length]
+        embeddings = embeddings.permute(0, 2, 1)
 
-        x = embeddings.permute(0, 2, 1)
+        # Apply each convolutional layer followed by ReLU and global max pooling
+        p1 = minitorch.max(self.conv1(embeddings).relu(), dim=2)
+        p2 = minitorch.max(self.conv2(embeddings).relu(), dim=2)
+        p3 = minitorch.max(self.conv3(embeddings).relu(), dim=2)
 
-        # Apply convolutional layers
-        convs = [conv(x) for conv in self.convs]
+        # Concatenate the pooled outputs
+        x2 = p1 + p2 + p3
 
-        # Apply ReLU
-        convs = [minitorch.max(conv.relu(),2) for conv in convs]
-
-        # Concatenate pooled features
-        pooled = minitorch.cat(convs, dim=1)
-
-        # Apply linear layer
-        out = self.fc(pooled)
-
-        return minitorch.sigmoid(out)
-
-
-
+        # Apply the fully connected layer
+        fullcon = self.fc(x2.view(x2.shape[0],x2.shape[1])).relu()
+        drop = minitorch.dropout(input=fullcon, p = self.dropout)
+        out = drop.sigmoid().view(embeddings.shape[0])
+        return out
 
 # Evaluation helper methods
 def get_predictions_array(y_true, model_output):
@@ -276,7 +273,7 @@ if __name__ == "__main__":
     train_size = 450
     validation_size = 100
     learning_rate = 0.01
-    max_epochs = 250
+    max_epochs = 100000
 
     (X_train, y_train), (X_val, y_val) = encode_sentiment_data(
         load_dataset("glue", "sst2"),
@@ -293,3 +290,10 @@ if __name__ == "__main__":
         max_epochs=max_epochs,
         data_val=(X_val, y_val),
     )
+
+# if __name__ == "__main__":
+#     a = Linear(4, 3)
+#     print(a.weights.value)
+#     b = minitorch.tensor([[1,2,3,4],[5,6,7,8]],backend=BACKEND)
+#     print(a(b))
+

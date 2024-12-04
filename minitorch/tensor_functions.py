@@ -200,21 +200,6 @@ class Sum(Function):
         return (zeros(a.shape) + 1) * grad_output, 0.0
 
 
-class Max(Function):
-    @staticmethod
-    def forward(ctx: Context, a: Tensor, dim: Tensor) -> Tensor:
-        """Max forward"""
-        b = a.f.max_reduce(a, int(dim.item()))
-        ctx.save_for_backward(a == b)
-        return b
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
-        """Max backward"""
-        (a,) = ctx.saved_values
-        return a * grad_output, 0.0
-
-
 class LT(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor, t2: Tensor) -> Tensor:
@@ -328,7 +313,7 @@ class MatMul(Function):
         )
 
 
-# Helpers for Constructing tensors
+# Helpers for Constructing ts
 def zeros(shape: UserShape, backend: TensorBackend = SimpleBackend) -> Tensor:
     """Produce a zero tensor of size `shape`.
 
@@ -430,7 +415,7 @@ def tensor(
     return _tensor(cur, tuple(shape2), backend=backend, requires_grad=requires_grad)
 
 
-# Gradient check for tensors
+# Gradient check for ts
 
 
 def grad_central_difference(
