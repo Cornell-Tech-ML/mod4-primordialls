@@ -94,7 +94,7 @@ class Network(minitorch.Module):
         # Step 5: First linear layer with ReLU and dropout
         hidden = self.linear1.forward(flattened)
         hidden = hidden.relu()
-        hidden = minitorch.dropout(hidden, 0.25)
+        hidden = minitorch.dropout(hidden, 0.25, not self.training)
 
         # Step 6: Second linear layer
         logits = self.linear2.forward(hidden)
@@ -127,7 +127,7 @@ class ImageTrain:
         return self.model.forward(minitorch.tensor([x], backend=BACKEND))
 
     def train(
-        self, data_train, data_val, learning_rate, max_epochs=500, log_fn=default_log_fn
+        self, data_train, data_val, learning_rate, max_epochs=25, log_fn=default_log_fn
     ):
         (X_train, y_train) = data_train
         (X_val, y_val) = data_val

@@ -85,7 +85,7 @@ class CNNSentimentKim(minitorch.Module):
 
         # Apply the fully connected layer
         fullcon = self.fc(x2.view(x2.shape[0],x2.shape[1])).relu()
-        drop = minitorch.dropout(input=fullcon, p = self.dropout)
+        drop = minitorch.dropout(input=fullcon, p = self.dropout, ignore = not self.training)
         out = drop.sigmoid().view(embeddings.shape[0])
         return out
 
